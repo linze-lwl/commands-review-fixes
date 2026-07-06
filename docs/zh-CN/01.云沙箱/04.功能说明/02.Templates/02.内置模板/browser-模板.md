@@ -112,7 +112,7 @@ cdp_ws_url = f"wss://{host}/ws/automation"
 vnc_ws_url = f"wss://{host}/ws/livestream"
 ```
 
-> **说明**：连接 CDP/VNC 端点时需要在请求头中携带 `X-Access-Token` 进行身份验证。使用 SDK 时可通过 `sbx._envd_access_token` 获取该 Token。
+> **说明**：连接 CDP/VNC 端点时需要在请求头中携带 `X-Access-Token` 进行身份验证。使用 SDK 时可通过 `sbx._envd_access_token` 获取该 Token。注意 `_envd_access_token` 属于 SDK 内部属性，后续版本可能重命名或移除；JS SDK 可使用公开字段 `sbx.envdAccessToken`。
 
 ### 第四步：连接并执行自动化脚本
 
@@ -170,8 +170,7 @@ const cdpEndpoint = 'wss://<sandbox-host>/ws/automation';
 const accessToken = '<access-token>';
 
 async function main() {
-  const browser = await chromium.connectOverCDP({
-    endpointURL: cdpEndpoint,
+  const browser = await chromium.connectOverCDP(cdpEndpoint, {
     headers: { 'X-Access-Token': accessToken },
   });
 

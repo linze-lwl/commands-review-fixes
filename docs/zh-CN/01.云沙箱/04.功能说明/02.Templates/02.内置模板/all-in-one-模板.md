@@ -60,11 +60,11 @@ all in one 模板在浏览器能力之上叠加 Code Interpreter 服务，默认
 
 ## 快速入门
 
-### 第一步：创建 all in one 沙箱
+### 第一步：准备 API Key
 
 1. 登录 [函数计算控制台](https://fcnext.console.aliyun.com/)。
-2. 创建并获取 API Key
-3. 然后通过SDK的方式获取 API 端点
+2. 参见[创建 API Key](../../../01.开始使用/02.创建%20API%20Key.md)创建并获取 API Key。
+3. 通过 SDK 使用 API Key 与 API 端点创建沙箱（见下方示例）。
 
 ### 第二步：获取端点
 
@@ -88,17 +88,21 @@ const BROWSER_SANDBOX_PORT = 3000;
 
 async function main() {
   const sbx = await Sandbox.create({ template: 'all-in-one-template', apiKey: E2B_API_KEY, timeout: 600 });
-  const host = sbx.getHost(BROWSER_SANDBOX_PORT);
-  const cdpEndpoint = `wss://${host}/ws/automation`;
+  try {
+    const host = sbx.getHost(BROWSER_SANDBOX_PORT);
+    const cdpEndpoint = `wss://${host}/ws/automation`;
 
-  const browser = await puppeteer.connect({
-    browserWSEndpoint: cdpEndpoint,
-    headers: { 'X-Access-Token': sbx.envdAccessToken },
-  });
-  const page = await browser.newPage();
-  await page.goto('https://example.com');
-  await page.screenshot({ path: 'example.png' });
-  await browser.close();
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: cdpEndpoint,
+      headers: { 'X-Access-Token': sbx.envdAccessToken },
+    });
+    const page = await browser.newPage();
+    await page.goto('https://example.com');
+    await page.screenshot({ path: 'example.png' });
+    await browser.close();
+  } finally {
+    await sbx.kill();
+  }
 }
 main();
 ```
@@ -130,6 +134,8 @@ POST ${BASEURL}/sandboxes/{sandboxId}/contexts/execute
 
 all in one 模板的核心优势是在同一沙箱会话中同时使用浏览器和代码执行能力。典型工作流：浏览器抓取数据 → Python 代码处理分析 → 文件 API 导出结果。
 
+> **说明**：下方 Python 示例通过 `sbx._envd_access_token` 获取访问 Token，该属性为 SDK 内部实现，后续版本可能变更；JS SDK 可使用公开字段 `sbx.envdAccessToken`。
+
 ```python
 import asyncio
 from e2b import Sandbox
@@ -140,21 +146,24 @@ BROWSER_SANDBOX_PORT = 3000
 async def run_aio_task():
     # 1. 创建沙箱并获取 CDP 端点
     sbx = Sandbox.create(template="all-in-one-template", api_key=E2B_API_KEY, timeout=600)
-    host = sbx.get_host(BROWSER_SANDBOX_PORT)
-    cdp_url = f"wss://{host}/ws/automation"
+    try:
+        host = sbx.get_host(BROWSER_SANDBOX_PORT)
+        cdp_url = f"wss://{host}/ws/automation"
 
-    browser = BrowserSession(
-        cdp_url=cdp_url,
-        browser_profile=BrowserProfile(headless=True),
-        extra_headers={"X-Access-Token": sbx._envd_access_token},
-    )
+        browser = BrowserSession(
+            cdp_url=cdp_url,
+            browser_profile=BrowserProfile(headless=True),
+            extra_headers={"X-Access-Token": sbx._envd_access_token},
+        )
 
-    # 2. 通过数据面 API 创建 Python 上下文并执行数据处理代码
-    #    POST ${BASEURL}/sandboxes/{sandboxId}/contexts
-    #    POST ${BASEURL}/sandboxes/{sandboxId}/contexts/execute
+        # 2. 通过数据面 API 创建 Python 上下文并执行数据处理代码
+        #    POST ${BASEURL}/sandboxes/{sandboxId}/contexts
+        #    POST ${BASEURL}/sandboxes/{sandboxId}/contexts/execute
 
-    # 3. 用浏览器抓取数据，再用代码处理分析
-    #    ...
+        # 3. 用浏览器抓取数据，再用代码处理分析
+        #    ...
+    finally:
+        sbx.kill()
 
 asyncio.run(run_aio_task())
 ```
